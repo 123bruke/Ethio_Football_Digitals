@@ -90,30 +90,99 @@ export class ThreeScene {
       this.scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
       pmremGenerator.dispose();
 
-      // Balanced Floodlight Lighting Rig
-      const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 0.85);
+      // Atmospheric Sky Dome with Twilight Horizon
+      const skyGeo = new THREE.SphereGeometry(220, 24, 16);
+      const skyCanvas = document.createElement('canvas');
+      skyCanvas.width = 16;
+      skyCanvas.height = 256;
+      const skyCtx = skyCanvas.getContext('2d');
+      if (skyCtx) {
+        const skyGrad = skyCtx.createLinearGradient(0, 0, 0, 256);
+        skyGrad.addColorStop(0, '#030712'); // Deep night zenith
+        skyGrad.addColorStop(0.65, '#0b1626');
+        skyGrad.addColorStop(0.85, '#1e293b'); // Stadium haze twilight horizon
+        skyGrad.addColorStop(1, '#0f172a');
+        skyCtx.fillStyle = skyGrad;
+        skyCtx.fillRect(0, 0, 16, 256);
+      }
+      const skyTex = new THREE.CanvasTexture(skyCanvas);
+      skyTex.colorSpace = THREE.SRGBColorSpace;
+      const skyMat = new THREE.MeshBasicMaterial({
+        map: skyTex,
+        side: THREE.BackSide,
+        depthWrite: false,
+      });
+      const skyMesh = new THREE.Mesh(skyGeo, skyMat);
+      skyMesh.rotation.y = Math.PI;
+      this.scene.add(skyMesh);
+
+      // Balanced 4-Point Stadium Floodlight Rig
+      const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x064e3b, 0.92);
       this.scene.add(hemiLight);
 
-      const mainFloodLight = new THREE.DirectionalLight(0xfffbeb, 1.85);
-      mainFloodLight.position.set(24, 52, 34);
+      // Main Primary Pitch Floodlight
+      const mainFloodLight = new THREE.DirectionalLight(0xfffbeb, 2.15);
+      mainFloodLight.position.set(28, 54, 38);
       if (!this.isSoftwareGl) {
         mainFloodLight.castShadow = true;
-        mainFloodLight.shadow.mapSize.width = 1024;
-        mainFloodLight.shadow.mapSize.height = 1024;
+        mainFloodLight.shadow.mapSize.width = 2048;
+        mainFloodLight.shadow.mapSize.height = 2048;
         mainFloodLight.shadow.camera.near = 10;
-        mainFloodLight.shadow.camera.far = 140;
-        const d = 48;
+        mainFloodLight.shadow.camera.far = 160;
+        const d = 52;
         mainFloodLight.shadow.camera.left = -d;
         mainFloodLight.shadow.camera.right = d;
         mainFloodLight.shadow.camera.top = d;
         mainFloodLight.shadow.camera.bottom = -d;
-        mainFloodLight.shadow.bias = -0.0005;
+        mainFloodLight.shadow.bias = -0.0003;
       }
       this.scene.add(mainFloodLight);
 
-      const rimFloodLight = new THREE.DirectionalLight(0x93c5fd, 0.75);
-      rimFloodLight.position.set(-28, 42, -32);
+      // Counter Rim Floodlight from North-West
+      const rimFloodLight = new THREE.DirectionalLight(0x93c5fd, 0.95);
+      rimFloodLight.position.set(-32, 46, -36);
       this.scene.add(rimFloodLight);
+
+      // Warm Side Pitch Fill from North-East
+      const sideFillLight = new THREE.DirectionalLight(0xfef08a, 0.55);
+      sideFillLight.position.set(34, 42, -32);
+      this.scene.add(sideFillLight);
+
+      // Optical Floodlight Glow Sprites on the 4 Stadium Towers
+      const glowCanvas = document.createElement('canvas');
+      glowCanvas.width = 128;
+      glowCanvas.height = 128;
+      const gctx = glowCanvas.getContext('2d');
+      if (gctx) {
+        const radGrad = gctx.createRadialGradient(64, 64, 4, 64, 64, 64);
+        radGrad.addColorStop(0, 'rgba(254, 240, 138, 1)');
+        radGrad.addColorStop(0.3, 'rgba(254, 240, 138, 0.55)');
+        radGrad.addColorStop(0.7, 'rgba(56, 189, 248, 0.15)');
+        radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        gctx.fillStyle = radGrad;
+        gctx.fillRect(0, 0, 128, 128);
+      }
+      const glowTex = new THREE.CanvasTexture(glowCanvas);
+      const glowMat = new THREE.SpriteMaterial({
+        map: glowTex,
+        color: 0xffffff,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+
+      const towerCorners = [
+        [-(pitch.halfW + 14), 28.5, -(pitch.halfH + 12)],
+        [pitch.halfW + 14, 28.5, -(pitch.halfH + 12)],
+        [-(pitch.halfW + 14), 28.5, pitch.halfH + 12],
+        [pitch.halfW + 14, 28.5, pitch.halfH + 12],
+      ];
+      for (const [tx, ty, tz] of towerCorners) {
+        const sprite = new THREE.Sprite(glowMat);
+        sprite.position.set(tx, ty, tz);
+        sprite.scale.set(9.5, 9.5, 1);
+        this.scene.add(sprite);
+      }
 
       const maxAniso = this.renderer.capabilities.getMaxAnisotropy();
       this.stadium = new StadiumRenderer(pitch, maxAniso);

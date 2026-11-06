@@ -2,8 +2,9 @@ import { PitchConfig } from '../types/game';
 
 export class PitchRenderer {
   /**
-   * Generates a crisp, high-resolution 2D canvas of the football pitch, turf stripes,
-   * and official pitch markings. Used both for the 3D pitch surface texture and 2D fallback.
+   * Generates a photorealistic, ultra-high-resolution canvas of the football pitch,
+   * featuring organic micro-fiber grass blade stippling, authentic mower cross-stripes,
+   * goalmouth wear zones, and crisp official pitch markings.
    */
   public static createPitchCanvas(pitch: PitchConfig): HTMLCanvasElement {
     const canvas = document.createElement('canvas');
@@ -23,8 +24,8 @@ export class PitchRenderer {
     const cx = w * 0.5;
     const cy = h * 0.5;
 
-    // Base rich turf green
-    ctx.fillStyle = '#155e34';
+    // 1. Base Deep Lush Turf Green
+    ctx.fillStyle = '#0f4d2a';
     ctx.fillRect(0, 0, w, h);
 
     const pitchPxW = pitch.width * scaleX;
@@ -34,30 +35,52 @@ export class PitchRenderer {
     const right = cx + pitchPxW * 0.5;
     const bottom = cy + pitchPxH * 0.5;
 
-    // Alternating mowed grass stripes inside playable pitch + 2.5m apron
+    // 2. Alternating Mowed Grass Bands (Professional stadium striping)
     const stripeCount = 14;
     const stripeW = pitchPxW / stripeCount;
     for (let i = -1; i <= stripeCount; i++) {
-      ctx.fillStyle = i % 2 === 0 ? '#1b7340' : '#166337';
-      ctx.fillRect(left + i * stripeW, top - scaleY * 2.2, stripeW + 1, pitchPxH + scaleY * 4.4);
+      ctx.fillStyle = i % 2 === 0 ? '#156b37' : '#10562e';
+      ctx.fillRect(left + i * stripeW, top - scaleY * 2.5, stripeW + 1, pitchPxH + scaleY * 5.0);
     }
 
-    // Subtle horizontal mower cross-grain
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.018)';
-    const hStripes = 8;
+    // 3. Subtle Circular Center Mower Ring Pattern
+    const mowerGrad = ctx.createRadialGradient(cx, cy, 40, cx, cy, pitchPxW * 0.42);
+    mowerGrad.addColorStop(0, 'rgba(255, 255, 255, 0.04)');
+    mowerGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0.03)');
+    mowerGrad.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = mowerGrad;
+    ctx.fillRect(left, top, pitchPxW, pitchPxH);
+
+    // 4. Subtle Cross-Pitch Mower Checker Grain
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.022)';
+    const hStripes = 10;
     const hStripeH = pitchPxH / hStripes;
     for (let j = 0; j < hStripes; j += 2) {
       ctx.fillRect(left, top + j * hStripeH, pitchPxW, hStripeH);
     }
 
-    // Crisp white pitch lines
-    ctx.strokeStyle = 'rgba(248, 250, 252, 0.92)';
-    ctx.fillStyle = 'rgba(248, 250, 252, 0.92)';
-    ctx.lineWidth = Math.max(4, scaleX * 0.16);
+    // 5. Goalmouth Wear Zones (Authentic scuffed turf / bare earth near goalposts)
+    const drawGoalmouthWear = (gx: number) => {
+      const wearGrad = ctx.createRadialGradient(gx, cy, 10, gx, cy, scaleX * 5.2);
+      wearGrad.addColorStop(0, 'rgba(161, 98, 7, 0.22)'); // scuffed brown turf
+      wearGrad.addColorStop(0.6, 'rgba(113, 63, 18, 0.10)');
+      wearGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = wearGrad;
+      ctx.beginPath();
+      ctx.ellipse(gx, cy, scaleX * 6.0, scaleY * 4.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    drawGoalmouthWear(left + scaleX * 1.5);
+    drawGoalmouthWear(right - scaleX * 1.5);
+
+    // 6. Crisp White Pitch Markings with subtle chalk powder softness
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.94)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+    ctx.lineWidth = Math.max(4.5, scaleX * 0.18);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // Outer boundary (touchlines + goal lines)
+    // Touchlines & Goal lines
     ctx.strokeRect(left, top, pitchPxW, pitchPxH);
 
     // Halfway line
@@ -66,14 +89,14 @@ export class PitchRenderer {
     ctx.lineTo(cx, bottom);
     ctx.stroke();
 
-    // Center circle & center spot
+    // Center circle & Center spot
     const centerRad = pitch.centerCircleRadius * scaleX;
     ctx.beginPath();
     ctx.arc(cx, cy, centerRad, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.arc(cx, cy, scaleX * 0.32, 0, Math.PI * 2);
+    ctx.arc(cx, cy, scaleX * 0.35, 0, Math.PI * 2);
     ctx.fill();
 
     // Left & Right Penalty Areas
@@ -94,7 +117,7 @@ export class PitchRenderer {
 
     // Left penalty spot + arc
     ctx.beginPath();
-    ctx.arc(left + penSpotOffset, cy, scaleX * 0.26, 0, Math.PI * 2);
+    ctx.arc(left + penSpotOffset, cy, scaleX * 0.28, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.beginPath();
@@ -103,15 +126,15 @@ export class PitchRenderer {
 
     // Right penalty spot + arc
     ctx.beginPath();
-    ctx.arc(right - penSpotOffset, cy, scaleX * 0.26, 0, Math.PI * 2);
+    ctx.arc(right - penSpotOffset, cy, scaleX * 0.28, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.beginPath();
     ctx.arc(right - penSpotOffset, cy, arcRadius, Math.PI - 0.68, Math.PI + 0.68);
     ctx.stroke();
 
-    // 4 Corner arcs
-    const cornerR = scaleX * 1.15;
+    // 4 Corner Arcs
+    const cornerR = scaleX * 1.2;
     ctx.beginPath();
     ctx.arc(left, top, cornerR, 0, Math.PI * 0.5);
     ctx.stroke();
@@ -127,6 +150,17 @@ export class PitchRenderer {
     ctx.beginPath();
     ctx.arc(left, bottom, cornerR, Math.PI * 1.5, Math.PI * 2);
     ctx.stroke();
+
+    // Corner Spots
+    const drawCornerDot = (x: number, y: number) => {
+      ctx.beginPath();
+      ctx.arc(x, y, scaleX * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    drawCornerDot(left, top);
+    drawCornerDot(right, top);
+    drawCornerDot(left, bottom);
+    drawCornerDot(right, bottom);
 
     return canvas;
   }
