@@ -1,11 +1,14 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 import json
 import shutil
 import psutil
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel                   
+from app.services.live_match_tracker import live_tracker
 
 
 
@@ -143,3 +146,41 @@ def update_user_status(
     db.commit()
     db.refresh(target)
     return {"id": target.id, "username": target.username, "is_active": target.is_active}
+
+
+class TriggerGoalRequest(BaseModel):
+    match_id: str | None = None
+    team: str = "home"
+    player: str | None = None
+
+
+@router.get("/matches/live")
+def get_live_matches(_admin: User = Depends(get_admin_user)):
+    """Returns active in-progress matches, scores, amount of goals, and recent events."""
+    return live_tracker.get_state()
+
+
+@router.get("/matches/stream")
+async def stream_live_matches():
+    """Real-time SSE event stream for live matches and goal alerts without page refreshing."""
+    async def event_generator():
+        while True:
+            state = live_tracker.get_state()
+            yield f"data: {json.dumps(state)}\n\n"
+            await asyncio.sleep(2.0)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/matches/trigger-goal")
+def trigger_goal(payload: TriggerGoalRequest, _admin: User = Depends(get_admin_user)):
+    """Allows an administrator to test/simulate an instant real-time goal."""
+    return live_tracker.trigger_goal(payload.match_id or "match-live-01", payload.team, payload.player)

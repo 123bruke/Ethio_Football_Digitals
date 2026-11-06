@@ -19,6 +19,8 @@ services:
       retries: 10
     mem_limit: 512m
     networks: [ pitchside-internal ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   neo4j:
     image: neo4j:5-community
@@ -44,6 +46,8 @@ services:
       start_period: 40s
     mem_limit: 1g
     networks: [ pitchside-internal ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   backend:
     init: true
@@ -84,6 +88,8 @@ services:
       retries: 5
     mem_limit: 1024m
     networks: [ pitchside-internal ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   player-web:
     build:
@@ -96,6 +102,8 @@ services:
       - "3000:80"
     mem_limit: 96m
     networks: [ pitchside-internal ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   admin-web:
     build:
@@ -108,6 +116,8 @@ services:
       - "127.0.0.1:3001:80"
     mem_limit: 96m
     networks: [ pitchside-internal ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   ollama:
     image: ollama/ollama:latest
@@ -123,6 +133,8 @@ services:
       - "127.0.0.1:11434:11434"
     mem_limit: 2500m
     networks: [ pitchside-internal ]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres_data:
