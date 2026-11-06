@@ -1,0 +1,134 @@
+name: pitchside
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pitchside}
+      POSTGRES_USER: ${POSTGRES_USER:-pitchside}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    command: [ "postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=30" ]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pitchside} -d ${POSTGRES_DB:-pitchside}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    networks: [ pitchside-internal ]
+
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: 128m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_dbms_security_auth__minimum__password__length: 12
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7688:7687"
+    healthcheck:
+      test: [ "CMD-SHELL", "cypher-shell -u neo4j -p $$NEO4J_PASSWORD 'RETURN 1' >/dev/null 2>&1" ]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+    mem_limit: 1g
+    networks: [ pitchside-internal ]
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pitchside}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pitchside}
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      NEO4J_ENABLED: ${NEO4J_ENABLED:-true}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      MODEL_ARTIFACT_PATH: /app/artifacts/football_result.joblib
+      MODEL_METADATA_PATH: /app/artifacts/football_result_metadata.json
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      neo4j: { condition: service_started }
+    volumes:
+      - ./backend:/app/backend
+      - ./ai:/app/ai
+      - ./artifacts:/app/artifacts
+      - ./data:/app/data:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)" ]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    mem_limit: 1024m
+    networks: [ pitchside-internal ]
+
+  player-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args: { VITE_API_URL: /same-origin }
+    restart: unless-stopped
+    depends_on: { backend: { condition: service_healthy } }
+    ports:
+      - "3000:80"
+    mem_limit: 96m
+    networks: [ pitchside-internal ]
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: apps/admin-web/Dockerfile
+      args: { VITE_API_URL: /same-origin }
+    restart: unless-stopped
+    depends_on: { backend: { condition: service_healthy } }
+    ports:
+      - "127.0.0.1:3001:80"
+    mem_limit: 96m
+    networks: [ pitchside-internal ]
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ "local-llm" ]
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_NUM_PARALLEL: 1
+      OLLAMA_MAX_LOADED_MODELS: 1
+      OLLAMA_KEEP_ALIVE: 5m
+    ports:
+      - "127.0.0.1:11434:11434"
+    mem_limit: 2500m
+    networks: [ pitchside-internal ]
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  ollama_data:
+
+networks:
+  pitchside-internal:
+    driver: bridge
