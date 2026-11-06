@@ -1,5 +1,7 @@
 <img width="1912" height="891" alt="Screenshot 2026-11-06 224415" src="https://github.com/user-attachments/assets/8bf6171f-db0d-4150-afa3-3bd40a4ddc8d" />
 <img width="1917" height="782" alt="Screenshot 2026-11-06 224236" src="https://github.com/user-attachments/assets/02144642-a053-4ab1-90ea-b156c51b5254" />
+<img width="1897" height="787" alt="Screenshot 2026-11-06 223741" src="https://github.com/user-attachments/assets/9206cbd0-bf59-4a90-8597-a460a0c9f765" />
+
 
 
 PitchSide evolves the original 3D 5v5 arcade football project into a two-frontend platform for players and administrators. The existing game is preserved, while the repository adds a social web app, authentication, a private admin dashboard, a local prediction pipeline, an optional assistant model, PostgreSQL, Neo4j, Docker deployment, and detailed documentation.
