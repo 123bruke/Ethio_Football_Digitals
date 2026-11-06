@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD in .env}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      AUTH_PW: ${NEO4J_PASSWORD}
       NEO4J_server_memory_heap_initial__size: 128m
       NEO4J_server_memory_heap_max__size: 512m
       NEO4J_server_memory_pagecache_size: 256m
@@ -37,7 +37,7 @@ services:
       - "127.0.0.1:7474:7474"
       - "127.0.0.1:7688:7687"
     healthcheck:
-      test: [ "CMD-SHELL", "cypher-shell -u neo4j -p $$NEO4J_PASSWORD 'RETURN 1' >/dev/null 2>&1" ]
+      test: [ "CMD-SHELL", "cypher-shell -u neo4j -p $$AUTH_PW 'RETURN 1' >/dev/null 2>&1" ]
       interval: 15s
       timeout: 10s
       retries: 12
@@ -46,6 +46,7 @@ services:
     networks: [ pitchside-internal ]
 
   backend:
+    init: true
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -58,8 +59,8 @@ services:
       NEO4J_PASSWORD: ${NEO4J_PASSWORD}
       NEO4J_ENABLED: ${NEO4J_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
       MODEL_ARTIFACT_PATH: /app/artifacts/football_result.joblib
       MODEL_METADATA_PATH: /app/artifacts/football_result_metadata.json
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}

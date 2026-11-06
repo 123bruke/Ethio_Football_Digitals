@@ -17,24 +17,42 @@ SYSTEM_PROMPT = (
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, user: User = Depends(get_current_user)):
-    body = {
-        "model": settings.ollama_model,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": payload.message},
-        ],
-        "stream": False,
-        "options": {"num_ctx": 2048, "num_predict": 240, "temperature": 0.25},
-    }
-    try:
-        async with httpx.AsyncClient(timeout=settings.assistant_timeout_seconds) as client:
-            response = await client.post(f"{settings.ollama_base_url.rstrip('/')}/api/chat", json=body)
-            response.raise_for_status()
-            answer = response.json().get("message", {}).get("content", "").strip()
-        if answer:
-            return ChatResponse(answer=answer, provider=f"Ollama · {settings.ollama_model}", reasoning="LLM explanation; no account actions")
-    except (httpx.HTTPError, ValueError, KeyError):
-        pass
+    candidate_urls = []
+    for url in [settings.ollama_base_url, "http://host.docker.internal:11434", "http://127.0.0.1:11434"]:
+        cleaned = url.rstrip("/")
+        if cleaned and cleaned not in candidate_urls:
+            candidate_urls.append(cleaned)
+
+    candidate_models = []
+    for model_name in [settings.ollama_model, "llama3.1:8b", "llama3.1:latest", "llama3.1", "llama3"]:
+        if model_name and model_name not in candidate_models:
+            candidate_models.append(model_name)
+
+    async with httpx.AsyncClient(timeout=settings.assistant_timeout_seconds) as client:
+        for base_url in candidate_urls:
+            for model_name in candidate_models:
+                try:
+                    body = {
+                        "model": model_name,
+                        "messages": [
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": payload.message},
+                        ],
+                        "stream": False,
+                        "options": {"num_ctx": 2048, "num_predict": 240, "temperature": 0.25},
+                    }
+                    response = await client.post(f"{base_url}/api/chat", json=body)
+                    if response.status_code == 200:
+                        data = response.json()
+                        answer = data.get("message", {}).get("content", "").strip()
+                        if answer:
+                            return ChatResponse(
+                                answer=answer,
+                                provider=f"Local Llama · {model_name}",
+                                reasoning="Local Llama AI explanation; no account actions",
+                            )
+                except (httpx.HTTPError, ValueError, KeyError):
+                    continue
 
     fallback = (
         "The local language model is not connected yet. I can still explain the platform's approach: "

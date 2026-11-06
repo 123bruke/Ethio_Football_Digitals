@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60 * 12
     ollama_base_url: str = "http://host.docker.internal:11434"
-    ollama_model: str = "qwen2.5:1.5b"
+    ollama_model: str = "llama3.1:8b"
     assistant_timeout_seconds: int = 45
     model_artifact_path: str = str(PROJECT_ROOT / "artifacts" / "football_result.joblib")
     model_metadata_path: str = str(PROJECT_ROOT / "artifacts" / "football_result_metadata.json")
