@@ -360,3 +360,4 @@ async def predict_match_with_gemini_and_ml(match_id: str) -> dict[str, Any]:
         "projected_score": parsed_ai.get("projected_score", f"{match['home_score']} - {match['away_score']}"),
         "ai_model_used": ai_model_name,
     }
+

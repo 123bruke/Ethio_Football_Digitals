@@ -112,3 +112,4 @@ def reply_support_message(payload: SupportMessageCreate, admin: User = Depends(r
 def get_assistant_activity(admin: User = Depends(require_admin)):
     """Admin dashboard route to inspect all user assistant interactions and actions in real time."""
     return {"activity": ASSISTANT_ACTIVITY_LOGS}
+

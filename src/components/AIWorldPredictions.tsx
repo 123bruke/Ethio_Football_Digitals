@@ -564,3 +564,4 @@ export function AIWorldPredictions({ token, onLaunchGame }: AIWorldPredictionsPr
     </div>
   );
 }
+
