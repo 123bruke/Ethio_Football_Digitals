@@ -28,7 +28,7 @@ export function GameControls({
       window.innerWidth < 900
     );
   });
-  const [hudCollapsed, setHudCollapsed] = useState(false);
+  const [hudCollapsed, setHudCollapsed] = useState(true);
 
   // Virtual Joystick State
   const stickBaseRef = useRef<HTMLDivElement | null>(null);

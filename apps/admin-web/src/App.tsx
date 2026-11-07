@@ -109,6 +109,27 @@ type LiveMatchesState = {
   server_time: string;
 };
 
+type SupportMessage = {
+  id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: string;
+  content: string;
+  image_url: string | null;
+  created_at: string;
+  is_admin: boolean;
+};
+
+type AssistantActivity = {
+  id: string;
+  user_id: string;
+  prompt: string;
+  answer: string;
+  provider: string;
+  action: { type: string; mode?: string; label?: string } | null;
+  timestamp: string;
+};
+
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('pitchside:admin-token') || '');
   const [email, setEmail] = useState('');
@@ -118,11 +139,16 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState('');
-  const [view, setView] = useState<'overview' | 'live-matches' | 'users'>('overview');
+  const [view, setView] = useState<'overview' | 'live-matches' | 'support' | 'users'>('overview');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [userQuery, setUserQuery] = useState('');
   const [userBusyId, setUserBusyId] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
+  const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
+  const [assistantLogs, setAssistantLogs] = useState<AssistantActivity[]>([]);
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   const signOut = useCallback(() => {
     localStorage.removeItem('pitchside:admin-token');
@@ -130,6 +156,8 @@ export default function App() {
     setMetrics(null);
     setLiveState(null);
     setUsers([]);
+    setSupportMessages([]);
+    setAssistantLogs([]);
     setView('overview');
   }, []);
 
@@ -281,6 +309,55 @@ export default function App() {
     }
   }
 
+  const loadSupportMessages = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/v1/football/support/messages`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSupportMessages(data.messages || []);
+      }
+    } catch {}
+  }, [token]);
+
+  const loadAssistantActivity = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/v1/football/assistant/activity`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAssistantLogs(data.activity || []);
+      }
+    } catch {}
+  }, [token]);
+
+  const sendAdminReply = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!adminReplyText.trim() || replyBusy || !token) return;
+    setReplyBusy(true);
+    try {
+      const res = await fetch(`${API}/api/v1/football/support/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: adminReplyText.trim() }),
+      });
+      if (res.ok) {
+        setAdminReplyText('');
+        void loadSupportMessages();
+      }
+    } catch {}
+    finally {
+      setReplyBusy(false);
+    }
+  };
+
   async function login(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -402,6 +479,16 @@ export default function App() {
           )}
         </button>
         <button
+          className={view === 'support' ? 'admin-side-link active' : 'admin-side-link'}
+          onClick={() => {
+            setView('support');
+            void loadSupportMessages();
+            void loadAssistantActivity();
+          }}
+        >
+          <MessageCircle size={17} /> Telegram player chat & images
+        </button>
+        <button
           className={view === 'users' ? 'admin-side-link active' : 'admin-side-link'}
           onClick={() => {
             setView('users');
@@ -429,6 +516,8 @@ export default function App() {
                 ? 'System overview'
                 : view === 'live-matches'
                 ? 'Real-Time Matches & Goal Monitor'
+                : view === 'support'
+                ? 'Telegram Support & AI Actions Monitor'
                 : 'User management'}
             </h1>
             <p>
@@ -436,6 +525,8 @@ export default function App() {
                 ? 'Monitor the PitchSide platform, prediction pipeline and local resources.'
                 : view === 'live-matches'
                 ? 'Live game telemetry, scores, and goal counter updating automatically without page refresh.'
+                : view === 'support'
+                ? 'Review player Telegram messages, inspect attached photos/screenshots, reply, and monitor live AI actions.'
                 : 'Review registered player accounts and manage access status.'}
             </p>
           </div>
@@ -863,7 +954,242 @@ export default function App() {
           </section>
         )}
 
-        {/* VIEW 3: USERS */}
+        {/* VIEW 3: TELEGRAM SUPPORT & AI ACTIVITY */}
+        {view === 'support' && (
+          <section className="panel" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Telegram Support Messages with Image Attachments */}
+            <div>
+              <div className="panel-head" style={{ marginBottom: '16px' }}>
+                <div>
+                  <span className="eyebrow">TELEGRAM PLAYER SUPPORT CHAT</span>
+                  <h2>Inquiries & Attached Screenshots ({supportMessages.length})</h2>
+                </div>
+                <button className="refresh-btn" onClick={() => void loadSupportMessages()} disabled={busy}>
+                  <RefreshCw size={14} /> Refresh messages
+                </button>
+              </div>
+
+              <div
+                style={{
+                  maxHeight: '380px',
+                  overflowY: 'auto',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}
+              >
+                {supportMessages.length === 0 ? (
+                  <p style={{ color: '#6b7280', fontSize: '12px', textAlign: 'center', padding: '24px' }}>
+                    No support messages received yet.
+                  </p>
+                ) : (
+                  supportMessages.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        alignSelf: m.is_admin ? 'flex-end' : 'flex-start',
+                        maxWidth: '80%',
+                        background: m.is_admin ? '#0f172a' : '#ffffff',
+                        color: m.is_admin ? '#ffffff' : '#111827',
+                        border: m.is_admin ? '1px solid #1e293b' : '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: m.is_admin ? '#38bdf8' : '#16a34a' }}>
+                          {m.sender_name} ({m.sender_role})
+                        </span>
+                        <span style={{ fontSize: '9px', opacity: 0.7 }}>
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      {m.image_url && (
+                        <div style={{ margin: '8px 0' }}>
+                          <img
+                            src={m.image_url}
+                            alt="Attachment"
+                            onClick={() => setEnlargedImage(m.image_url)}
+                            style={{
+                              maxHeight: '180px',
+                              maxWidth: '100%',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              border: '1px solid #cbd5e1',
+                            }}
+                          />
+                          <small style={{ display: 'block', fontSize: '9px', color: '#94a3b8', marginTop: '2px' }}>
+                            Click image to enlarge
+                          </small>
+                        </div>
+                      )}
+
+                      <p style={{ fontSize: '12px', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{m.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Admin Reply Form */}
+              <form onSubmit={sendAdminReply} style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={adminReplyText}
+                  onChange={(e) => setAdminReplyText(e.target.value)}
+                  placeholder="Type an official admin reply back to players..."
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                    fontSize: '12px',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!adminReplyText.trim() || replyBusy}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#16a34a',
+                    color: '#fff',
+                    border: 0,
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {replyBusy ? 'Sending…' : 'Send Admin Reply'}
+                </button>
+              </form>
+            </div>
+
+            {/* AI Assistant Live Activity Feed & Action Execution */}
+            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '20px' }}>
+              <div className="panel-head" style={{ marginBottom: '14px' }}>
+                <div>
+                  <span className="eyebrow">AI SYSTEM ACTIVITY & USER COMMANDS</span>
+                  <h2>Live User Requests & Actions ({assistantLogs.length})</h2>
+                </div>
+                <button className="refresh-btn" onClick={() => void loadAssistantActivity()} disabled={busy}>
+                  <RefreshCw size={14} /> Refresh logs
+                </button>
+              </div>
+
+              <div
+                style={{
+                  maxHeight: '320px',
+                  overflowY: 'auto',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '12px',
+                  background: '#ffffff',
+                }}
+              >
+                {assistantLogs.length === 0 ? (
+                  <p style={{ color: '#6b7280', fontSize: '12px', textAlign: 'center', padding: '24px' }}>
+                    No assistant prompts logged yet. When players interact or request actions, they will appear here.
+                  </p>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                        <th style={{ padding: '10px 14px' }}>TIME</th>
+                        <th style={{ padding: '10px 14px' }}>USER PROMPT</th>
+                        <th style={{ padding: '10px 14px' }}>TRIGGERED ACTION</th>
+                        <th style={{ padding: '10px 14px' }}>PROVIDER</th>
+                        <th style={{ padding: '10px 14px' }}>RESPONSE SUMMARY</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assistantLogs.map((log) => (
+                        <tr key={log.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: '#64748b', fontSize: '10px' }}>
+                            {new Date(log.timestamp).toLocaleTimeString()}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>
+                            "{log.prompt}"
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            {log.action ? (
+                              <span
+                                style={{
+                                  background: '#dcfce7',
+                                  color: '#15803d',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  fontWeight: 700,
+                                  fontSize: '10px',
+                                }}
+                              >
+                                ⚡ {log.action.label || log.action.type}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8' }}>None</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 14px', color: '#0284c7', fontWeight: 600 }}>
+                            {log.provider}
+                          </td>
+                          <td style={{ padding: '10px 14px', color: '#475569' }}>
+                            {log.answer}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* Modal for viewing enlarged images */}
+            {enlargedImage && (
+              <div
+                onClick={() => setEnlargedImage(null)}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.85)',
+                  zIndex: 9999,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '20px',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ position: 'relative', maxWidth: '85vw', maxHeight: '85vh' }}>
+                  <img
+                    src={enlargedImage}
+                    alt="Enlarged"
+                    style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '12px', objectFit: 'contain' }}
+                  />
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: '#000',
+                      color: '#fff',
+                      padding: '4px 10px',
+                      borderRadius: '20px',
+                      fontSize: '11px',
+                    }}
+                  >
+                    Click to close
+                  </span>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* VIEW 4: USERS */}
         {view === 'users' && (
           <section className="panel users-panel">
             <div className="panel-head">

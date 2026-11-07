@@ -155,6 +155,34 @@ export function MainMenu({
 
             <div className="space-y-4">
               <div>
+                <label className="block text-xs text-slate-400 mb-1.5">Game Match Mode</label>
+                <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSettings({ gameMode: 'squad' })}
+                    className={`py-1.5 px-3 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                      (settings.gameMode || 'squad') === 'squad'
+                        ? 'bg-sky-500 text-slate-950 font-semibold'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    5v5 Squad Group
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateSettings({ gameMode: '1v1' })}
+                    className={`py-1.5 px-3 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                      settings.gameMode === '1v1'
+                        ? 'bg-sky-500 text-slate-950 font-semibold'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    1-on-1 Duel Mode
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-xs text-slate-400 mb-1.5">Opponent Difficulty</label>
                 <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-950 rounded-lg">
                   {(['casual', 'standard', 'pro'] as DifficultyLevel[]).map((level) => (

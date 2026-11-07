@@ -13,6 +13,9 @@ export interface GameLifecycleControls {
   returnToMenu: () => void;
   cycleCamera: () => void;
   updateSettings: (partial: Partial<MatchSettings>) => void;
+  toggleLights: () => void;
+  lightsOn: boolean;
+  setTimeOfDay: (mode: 'night' | 'dusk' | 'day') => void;
   inputActions: {
     setJoystick: (x: number, y: number) => void;
     setSprint: (active: boolean) => void;
@@ -37,6 +40,19 @@ export function useGameLifecycle(
   const [settings, setSettings] = useState<MatchSettings>(() => ({
     ...engineRef.current!.settings,
   }));
+  const threeSceneRef = useRef<ThreeScene | null>(null);
+  const [lightsOn, setLightsOn] = useState(true);
+
+  const toggleLights = useCallback(() => {
+    if (threeSceneRef.current) {
+      const next = threeSceneRef.current.toggleFloodlights();
+      setLightsOn(next);
+    }
+  }, []);
+
+  const setTimeOfDay = useCallback((mode: 'night' | 'dusk' | 'day') => {
+    threeSceneRef.current?.setTimeOfDay(mode);
+  }, []);
 
   const cycleCamera = useCallback(() => {
     if (!engineRef.current) return;
@@ -67,6 +83,8 @@ export function useGameLifecycle(
     window.addEventListener('keydown', handleCameraKey);
 
     const threeScene = new ThreeScene(threeContainer, engine.pitch);
+    threeSceneRef.current = threeScene;
+    setLightsOn(threeScene.getFloodlightsState());
     const playerRenderer = new PlayerRenderer();
     const ctx2D = canvas2D.getContext('2d');
 
@@ -110,6 +128,7 @@ export function useGameLifecycle(
       window.removeEventListener('resize', syncViewportSize);
       window.removeEventListener('keydown', handleCameraKey);
       threeScene.dispose();
+      threeSceneRef.current = null;
       engine.dispose();
     };
   }, [threeContainerRef, canvas2DRef, cycleCamera]);
@@ -150,6 +169,9 @@ export function useGameLifecycle(
     returnToMenu,
     cycleCamera,
     updateSettings,
+    toggleLights,
+    lightsOn,
+    setTimeOfDay,
     inputActions,
   };
 }

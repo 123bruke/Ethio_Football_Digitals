@@ -27,6 +27,15 @@ export class ThreeScene {
   public readonly confetti: ConfettiFX;
   public readonly volumetric: VolumetricLighting;
 
+  private mainFloodLight: THREE.DirectionalLight | null = null;
+  private rimFloodLight: THREE.DirectionalLight | null = null;
+  private sideFillLight: THREE.DirectionalLight | null = null;
+  private hemiLight: THREE.HemisphereLight | null = null;
+  private towerSprites: THREE.Sprite[] = [];
+  private skyMesh: THREE.Mesh | null = null;
+  private floodlightsOn = true;
+  private timeOfDay: 'night' | 'dusk' | 'day' = 'night';
+
   private width = 1280;
   private height = 720;
   private camCurrentX = 0;
@@ -114,10 +123,12 @@ export class ThreeScene {
       });
       const skyMesh = new THREE.Mesh(skyGeo, skyMat);
       skyMesh.rotation.y = Math.PI;
+      this.skyMesh = skyMesh;
       this.scene.add(skyMesh);
 
       // Balanced 4-Point Stadium Floodlight Rig
       const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x064e3b, 0.92);
+      this.hemiLight = hemiLight;
       this.scene.add(hemiLight);
 
       // Main Primary Pitch Floodlight
@@ -136,16 +147,19 @@ export class ThreeScene {
         mainFloodLight.shadow.camera.bottom = -d;
         mainFloodLight.shadow.bias = -0.0003;
       }
+      this.mainFloodLight = mainFloodLight;
       this.scene.add(mainFloodLight);
 
       // Counter Rim Floodlight from North-West
       const rimFloodLight = new THREE.DirectionalLight(0x93c5fd, 0.95);
       rimFloodLight.position.set(-32, 46, -36);
+      this.rimFloodLight = rimFloodLight;
       this.scene.add(rimFloodLight);
 
       // Warm Side Pitch Fill from North-East
       const sideFillLight = new THREE.DirectionalLight(0xfef08a, 0.55);
       sideFillLight.position.set(34, 42, -32);
+      this.sideFillLight = sideFillLight;
       this.scene.add(sideFillLight);
 
       // Optical Floodlight Glow Sprites on the 4 Stadium Towers
@@ -177,10 +191,12 @@ export class ThreeScene {
         [-(pitch.halfW + 14), 28.5, pitch.halfH + 12],
         [pitch.halfW + 14, 28.5, pitch.halfH + 12],
       ];
+      this.towerSprites = [];
       for (const [tx, ty, tz] of towerCorners) {
         const sprite = new THREE.Sprite(glowMat);
         sprite.position.set(tx, ty, tz);
         sprite.scale.set(9.5, 9.5, 1);
+        this.towerSprites.push(sprite);
         this.scene.add(sprite);
       }
 
@@ -414,6 +430,80 @@ export class ThreeScene {
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
     const fovScale = 37 / this.camera.fov;
     out.scale = (this.height / Math.max(20, dist)) * 0.78 * fovScale;
+  }
+
+  public toggleFloodlights(): boolean {
+    this.setFloodlights(!this.floodlightsOn);
+    return this.floodlightsOn;
+  }
+
+  public setFloodlights(enabled: boolean): void {
+    this.floodlightsOn = enabled;
+    const mult = enabled ? 1 : 0.12;
+    if (this.mainFloodLight) this.mainFloodLight.intensity = (this.timeOfDay === 'day' ? 2.8 : 2.15) * mult;
+    if (this.rimFloodLight) this.rimFloodLight.intensity = (this.timeOfDay === 'day' ? 1.2 : 0.95) * mult;
+    if (this.sideFillLight) this.sideFillLight.intensity = (this.timeOfDay === 'day' ? 0.8 : 0.55) * mult;
+    if (this.hemiLight) this.hemiLight.intensity = this.timeOfDay === 'day' ? 1.4 : (enabled ? 0.92 : 0.28);
+    for (const sprite of this.towerSprites) {
+      sprite.visible = enabled;
+    }
+    this.volumetric.group.visible = enabled && this.timeOfDay !== 'day';
+  }
+
+  public setTimeOfDay(mode: 'night' | 'dusk' | 'day'): void {
+    this.timeOfDay = mode;
+    if (mode === 'day') {
+      this.scene.background = new THREE.Color(0x38bdf8);
+      this.scene.fog = new THREE.FogExp2(0x93c5fd, 0.002);
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0xffffff);
+        this.hemiLight.groundColor.setHex(0x15803d);
+        this.hemiLight.intensity = 1.4;
+      }
+      if (this.mainFloodLight) {
+        this.mainFloodLight.color.setHex(0xffffff);
+        this.mainFloodLight.intensity = 2.8;
+      }
+      this.volumetric.group.visible = false;
+      for (const sprite of this.towerSprites) sprite.visible = false;
+    } else if (mode === 'dusk') {
+      this.scene.background = new THREE.Color(0x1e1b4b);
+      this.scene.fog = new THREE.FogExp2(0x311042, 0.004);
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0xfda4af);
+        this.hemiLight.groundColor.setHex(0x064e3b);
+        this.hemiLight.intensity = 0.85;
+      }
+      if (this.mainFloodLight) {
+        this.mainFloodLight.color.setHex(0xfef08a);
+        this.mainFloodLight.intensity = this.floodlightsOn ? 2.2 : 0.3;
+      }
+      this.volumetric.group.visible = this.floodlightsOn;
+      for (const sprite of this.towerSprites) sprite.visible = this.floodlightsOn;
+    } else {
+      // Night
+      this.scene.background = new THREE.Color(0x070b12);
+      this.scene.fog = new THREE.FogExp2(0x070b12, 0.0052);
+      if (this.hemiLight) {
+        this.hemiLight.color.setHex(0xdbeafe);
+        this.hemiLight.groundColor.setHex(0x064e3b);
+        this.hemiLight.intensity = this.floodlightsOn ? 0.92 : 0.28;
+      }
+      if (this.mainFloodLight) {
+        this.mainFloodLight.color.setHex(0xfffbeb);
+        this.mainFloodLight.intensity = this.floodlightsOn ? 2.15 : 0.25;
+      }
+      this.volumetric.group.visible = this.floodlightsOn;
+      for (const sprite of this.towerSprites) sprite.visible = this.floodlightsOn;
+    }
+  }
+
+  public getFloodlightsState(): boolean {
+    return this.floodlightsOn;
+  }
+
+  public getTimeOfDay(): 'night' | 'dusk' | 'day' {
+    return this.timeOfDay;
   }
 
   public getGlContext(): WebGL2RenderingContext | WebGLRenderingContext | null {

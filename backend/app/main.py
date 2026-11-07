@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import admin, assistant, auth, health, matches, predictions, registry, social
+from app.api.routes import admin, assistant, auth, football, health, matches, predictions, registry, social
 from app.core.config import settings
 from app.db.session import Base, engine
 from app.db import models  # noqa: F401 - registers SQLAlchemy models
@@ -34,6 +34,7 @@ app.include_router(admin.router, prefix="/api/v1")
 app.include_router(registry.router, prefix="/api/v1")
 app.include_router(social.router, prefix="/api/v1")
 app.include_router(matches.router, prefix="/api/v1")
+app.include_router(football.router, prefix="/api/v1")
 
 
 @app.get("/")

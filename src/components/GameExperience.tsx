@@ -18,6 +18,7 @@ export function GameExperience({ token }: { token: string }) {
   const canvas2DRef = useRef<HTMLCanvasElement | null>(null);
   const savedMatchRef = useRef<string>('');
   const [saveNotice, setSaveNotice] = useState('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const {
     hud,
@@ -27,8 +28,26 @@ export function GameExperience({ token }: { token: string }) {
     returnToMenu,
     cycleCamera,
     updateSettings,
+    toggleLights,
+    lightsOn,
     inputActions,
   } = useGameLifecycle(threeContainerRef, canvas2DRef);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
 
   useEffect(() => {
     if (hud.phase !== 'FULL_TIME') {
@@ -105,6 +124,10 @@ export function GameExperience({ token }: { token: string }) {
             onPause={togglePause}
             onToggleCamera={cycleCamera}
             cameraMode={settings.cameraMode}
+            onToggleFullscreen={toggleFullscreen}
+            isFullscreen={isFullscreen}
+            onToggleLights={toggleLights}
+            lightsOn={lightsOn}
           />
           <GameControls
             onJoystick={inputActions.setJoystick}

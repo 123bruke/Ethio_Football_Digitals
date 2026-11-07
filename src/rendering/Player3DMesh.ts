@@ -228,22 +228,149 @@ export class Player3DMesh {
     this.headGroup.add(this.headMesh);
 
     // Ears
-    const earGeo = new THREE.SphereGeometry(0.05, 8, 8);
-    earGeo.scale(0.5, 1, 0.8);
-    const leftEar = new THREE.Mesh(earGeo, bodySkinMat);
-    leftEar.position.set(-0.23, 0, -0.02);
-    this.headGroup.add(leftEar);
-    const rightEar = new THREE.Mesh(earGeo, bodySkinMat);
-    rightEar.position.set(0.23, 0, -0.02);
-    this.headGroup.add(rightEar);
+    const earHelixGeo = new THREE.TorusGeometry(0.042, 0.012, 8, 12, Math.PI * 1.15);
+    const earLobeGeo = new THREE.SphereGeometry(0.02, 8, 8);
+    earLobeGeo.scale(0.8, 1.2, 0.6);
 
-    // Modern athletic textured fade hairstyle
-    const hairGeo = new THREE.SphereGeometry(0.252, 16, 14);
-    hairGeo.scale(0.94, 1.12, 1.05);
+    const leftEarGroup = new THREE.Group();
+    leftEarGroup.position.set(-0.232, 0.01, -0.02);
+    leftEarGroup.rotation.y = -Math.PI * 0.48;
+    leftEarGroup.add(new THREE.Mesh(earHelixGeo, bodySkinMat));
+    const leftLobe = new THREE.Mesh(earLobeGeo, bodySkinMat);
+    leftLobe.position.set(0, -0.038, 0);
+    leftEarGroup.add(leftLobe);
+    this.headGroup.add(leftEarGroup);
+
+    const rightEarGroup = new THREE.Group();
+    rightEarGroup.position.set(0.232, 0.01, -0.02);
+    rightEarGroup.rotation.y = Math.PI * 0.48;
+    rightEarGroup.add(new THREE.Mesh(earHelixGeo, bodySkinMat));
+    const rightLobe = new THREE.Mesh(earLobeGeo, bodySkinMat);
+    rightLobe.position.set(0, -0.038, 0);
+    rightEarGroup.add(rightLobe);
+    this.headGroup.add(rightEarGroup);
+
+    // Anatomical 3D Human Eyes (Sclera, Iris, Pupil, Specular Catchlight & Brow Ridges)
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.22,
+      metalness: 0.08,
+    });
+    const eyeIrisMat = new THREE.MeshStandardMaterial({
+      color: 0x451a03, // Rich hazel/brown iris
+      roughness: 0.2,
+      metalness: 0.15,
+    });
+    const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0x09090b });
+    const eyeSpecularMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const lipMat = new THREE.MeshStandardMaterial({
+      color: 0x9f564a,
+      roughness: 0.52,
+      metalness: 0.04,
+    });
+    const browMat = new THREE.MeshStandardMaterial({
+      color: hairColor,
+      roughness: 0.82,
+    });
+
+    const create3DEye = (isLeft: boolean) => {
+      const eyeGroup = new THREE.Group();
+      const scleraGeo = new THREE.SphereGeometry(0.026, 12, 10);
+      scleraGeo.scale(1.2, 0.9, 1);
+      const sclera = new THREE.Mesh(scleraGeo, eyeWhiteMat);
+      eyeGroup.add(sclera);
+
+      // Iris disc
+      const irisGeo = new THREE.CylinderGeometry(0.0135, 0.0135, 0.005, 12);
+      irisGeo.rotateX(Math.PI * 0.5);
+      const iris = new THREE.Mesh(irisGeo, eyeIrisMat);
+      iris.position.set(0, 0, 0.018);
+      eyeGroup.add(iris);
+
+      // Pupil disc
+      const pupilGeo = new THREE.CylinderGeometry(0.0068, 0.0068, 0.006, 10);
+      pupilGeo.rotateX(Math.PI * 0.5);
+      const pupil = new THREE.Mesh(pupilGeo, eyePupilMat);
+      pupil.position.set(0, 0, 0.021);
+      eyeGroup.add(pupil);
+
+      // Specular life catchlight
+      const specGeo = new THREE.SphereGeometry(0.0028, 6, 6);
+      const spec = new THREE.Mesh(specGeo, eyeSpecularMat);
+      spec.position.set(0.0035, 0.0035, 0.024);
+      eyeGroup.add(spec);
+
+      // Eyelid / Brow Arch
+      const browGeo = new THREE.CylinderGeometry(0.006, 0.004, 0.068, 8);
+      browGeo.rotateZ(isLeft ? 0.18 : -0.18);
+      const brow = new THREE.Mesh(browGeo, browMat);
+      brow.position.set(0, 0.038, 0.018);
+      eyeGroup.add(brow);
+
+      return eyeGroup;
+    };
+
+    const leftEye = create3DEye(true);
+    leftEye.position.set(-0.076, 0.036, 0.222);
+    this.headGroup.add(leftEye);
+
+    const rightEye = create3DEye(false);
+    rightEye.position.set(0.076, 0.036, 0.222);
+    this.headGroup.add(rightEye);
+
+    // Sculpted 3D Human Nose (Nasal Bridge + Tip + Left/Right Nostril Flares)
+    const noseBridgeGeo = new THREE.ConeGeometry(0.029, 0.092, 8);
+    noseBridgeGeo.rotateX(-0.25);
+    const noseBridge = new THREE.Mesh(noseBridgeGeo, bodySkinMat);
+    noseBridge.position.set(0, -0.016, 0.246);
+    this.headGroup.add(noseBridge);
+
+    const nostrilGeo = new THREE.SphereGeometry(0.014, 8, 8);
+    nostrilGeo.scale(0.8, 0.8, 1.2);
+    const leftNostril = new THREE.Mesh(nostrilGeo, bodySkinMat);
+    leftNostril.position.set(-0.024, -0.046, 0.234);
+    this.headGroup.add(leftNostril);
+
+    const rightNostril = new THREE.Mesh(nostrilGeo, bodySkinMat);
+    rightNostril.position.set(0.024, -0.046, 0.234);
+    this.headGroup.add(rightNostril);
+
+    // Sculpted 3D Human Lips & Mouth
+    const upperLipGeo = new THREE.TorusGeometry(0.038, 0.010, 8, 14, Math.PI * 0.95);
+    upperLipGeo.rotateZ(Math.PI);
+    const upperLip = new THREE.Mesh(upperLipGeo, lipMat);
+    upperLip.position.set(0, -0.082, 0.220);
+    this.headGroup.add(upperLip);
+
+    const lowerLipGeo = new THREE.TorusGeometry(0.034, 0.012, 8, 14, Math.PI * 0.9);
+    const lowerLip = new THREE.Mesh(lowerLipGeo, lipMat);
+    lowerLip.position.set(0, -0.102, 0.218);
+    this.headGroup.add(lowerLip);
+
+    // Modern athletic textured fade hairstyle with front pompadour & temple taper
+    const hairGeo = new THREE.SphereGeometry(0.254, 18, 16);
+    hairGeo.scale(0.95, 1.15, 1.06);
     this.hairMesh = new THREE.Mesh(hairGeo, hairMat);
-    this.hairMesh.position.set(0, 0.05, -0.02);
+    this.hairMesh.position.set(0, 0.055, -0.02);
     this.hairMesh.castShadow = true;
     this.headGroup.add(this.hairMesh);
+
+    // Front textured athletic volume / pompadour fringe
+    const pompadourGeo = new THREE.CylinderGeometry(0.09, 0.13, 0.16, 12);
+    pompadourGeo.rotateX(0.42);
+    const pompadour = new THREE.Mesh(pompadourGeo, hairMat);
+    pompadour.position.set(0, 0.185, 0.14);
+    pompadour.castShadow = true;
+    this.headGroup.add(pompadour);
+
+    // Sideburns
+    const sideburnGeo = new THREE.BoxGeometry(0.02, 0.08, 0.04);
+    const leftSideburn = new THREE.Mesh(sideburnGeo, hairMat);
+    leftSideburn.position.set(-0.22, 0.04, 0.04);
+    this.headGroup.add(leftSideburn);
+    const rightSideburn = new THREE.Mesh(sideburnGeo, hairMat);
+    rightSideburn.position.set(0.22, 0.04, 0.04);
+    this.headGroup.add(rightSideburn);
 
     // 6. Shoulders & Arms (Articulated at Shoulder and Elbow!)
     const deltoidGeo = new THREE.SphereGeometry(0.13, 12, 10);

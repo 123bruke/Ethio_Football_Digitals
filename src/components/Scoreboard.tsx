@@ -1,4 +1,4 @@
-import { Camera, Pause } from 'lucide-react';
+import { Camera, Pause, Maximize, Minimize, Lightbulb, LightbulbOff } from 'lucide-react';
 import { CameraMode, MatchHUDState } from '../types/game';
 
 interface ScoreboardProps {
@@ -6,9 +6,22 @@ interface ScoreboardProps {
   onPause: () => void;
   onToggleCamera: () => void;
   cameraMode: CameraMode;
+  onToggleFullscreen?: () => void;
+  isFullscreen?: boolean;
+  onToggleLights?: () => void;
+  lightsOn?: boolean;
 }
 
-export function Scoreboard({ hud, onPause, onToggleCamera, cameraMode }: ScoreboardProps) {
+export function Scoreboard({
+  hud,
+  onPause,
+  onToggleCamera,
+  cameraMode,
+  onToggleFullscreen,
+  isFullscreen = false,
+  onToggleLights,
+  lightsOn = true,
+}: ScoreboardProps) {
   const totalSeconds = Math.max(0, Math.ceil(hud.timeRemaining));
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
@@ -82,8 +95,44 @@ export function Scoreboard({ hud, onPause, onToggleCamera, cameraMode }: Scorebo
           </div>
         </div>
 
-        {/* Right Actions: Camera View Switcher + Pause Button */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        {/* Right Actions: Lights + Fullscreen + Camera + Pause */}
+        <div className="flex items-center gap-1.5 md:gap-2 pointer-events-auto">
+          {onToggleLights && (
+            <button
+              type="button"
+              onClick={onToggleLights}
+              title={lightsOn ? 'Turn Off Stadium Floodlights' : 'Turn On Stadium Floodlights'}
+              className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 rounded-lg text-xs font-medium text-slate-200 transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-lg backdrop-blur-xs"
+            >
+              {lightsOn ? (
+                <Lightbulb className="w-3.5 h-3.5 text-amber-300" />
+              ) : (
+                <LightbulbOff className="w-3.5 h-3.5 text-slate-500" />
+              )}
+              <span className="hidden md:inline text-[11px] font-mono text-slate-300">
+                {lightsOn ? 'Lights ON' : 'Lights OFF'}
+              </span>
+            </button>
+          )}
+
+          {onToggleFullscreen && (
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-950/90 hover:bg-slate-900 border border-slate-800 rounded-lg text-xs font-medium text-slate-200 transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-lg backdrop-blur-xs"
+            >
+              {isFullscreen ? (
+                <Minimize className="w-3.5 h-3.5 text-sky-400" />
+              ) : (
+                <Maximize className="w-3.5 h-3.5 text-sky-400" />
+              )}
+              <span className="hidden md:inline text-[11px] font-mono text-slate-300">
+                {isFullscreen ? 'Exit' : 'Fullscreen'}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onToggleCamera}

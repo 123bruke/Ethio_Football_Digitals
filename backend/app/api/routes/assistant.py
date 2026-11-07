@@ -4,19 +4,43 @@ from app.api.deps import get_current_user
 from app.core.config import settings
 from app.db.models import User
 from app.schemas import ChatRequest, ChatResponse
-from app.services.metta_reasoner import explain_confidence
+from app.services.world_football import (
+    call_gemini_api,
+    log_assistant_activity,
+    parse_conversational_actions,
+)
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 SYSTEM_PROMPT = (
-    "You are PitchSide Assistant, a clear and responsible football and football-data helper. "
-    "Explain statistical ideas simply. Never claim a prediction is certain. Do not provide betting instructions. "
-    "Do not ask for passwords or private account data. You cannot alter accounts, send messages, or execute actions. "
-    "Be honest when live match data or a trained prediction model is unavailable."
+    "You are PitchSide AI Assistant, an advanced football analyst and intelligent platform co-pilot. "
+    "You explain statistical match predictions (1X2 probabilities, xG, confidence), football tactics, "
+    "and player performances. When users ask to perform actions like playing the game, starting a 1v1 match, "
+    "turning stadium lights on/off, or viewing live world matches, confirm the action enthusiastically and clearly. "
+    "Explain statistical ideas simply and be honest about uncertainty."
 )
 
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest, user: User = Depends(get_current_user)):
+    user_msg = payload.message.strip()
+    action = parse_conversational_actions(user_msg)
+
+    # 1. Attempt Gemini 3.8 Flash first
+    gemini_resp = await call_gemini_api(user_msg, system_instruction=SYSTEM_PROMPT)
+    if gemini_resp:
+        answer = gemini_resp
+        if action and action.get("label"):
+            answer = f"⚡ Executing action: **{action['label']}**!\n\n" + answer
+        provider = "Gemini 3.8 Flash (google-genai)"
+        log_assistant_activity(user.id, user_msg, answer, provider, action)
+        return ChatResponse(
+            answer=answer,
+            provider=provider,
+            reasoning="Gemini 3.8 Flash multimodal reasoning connected with live football knowledge and action execution",
+            action=action,
+        )
+
+    # 2. Attempt Local Ollama Llama 3.1 8B
     candidate_urls = []
     for url in [settings.ollama_base_url, "http://host.docker.internal:11434", "http://127.0.0.1:11434"]:
         cleaned = url.rstrip("/")
@@ -36,7 +60,7 @@ async def chat(payload: ChatRequest, user: User = Depends(get_current_user)):
                         "model": model_name,
                         "messages": [
                             {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": payload.message},
+                            {"role": "user", "content": user_msg},
                         ],
                         "stream": False,
                         "options": {"num_ctx": 2048, "num_predict": 240, "temperature": 0.25},
@@ -46,18 +70,33 @@ async def chat(payload: ChatRequest, user: User = Depends(get_current_user)):
                         data = response.json()
                         answer = data.get("message", {}).get("content", "").strip()
                         if answer:
+                            if action and action.get("label"):
+                                answer = f"⚡ Executing action: **{action['label']}**!\n\n" + answer
+                            provider = f"Local Llama · {model_name}"
+                            log_assistant_activity(user.id, user_msg, answer, provider, action)
                             return ChatResponse(
                                 answer=answer,
-                                provider=f"Local Llama · {model_name}",
-                                reasoning="Local Llama AI explanation; no account actions",
+                                provider=provider,
+                                reasoning="Local Llama AI inference with platform action dispatching",
+                                action=action,
                             )
                 except (httpx.HTTPError, ValueError, KeyError):
                     continue
 
-    fallback = (
-        "The local language model is not connected yet. I can still explain the platform's approach: "
-        "football result predictions should use pre-match information such as recent form, scoring and conceding rates, "
-        "rest, and team strength. The model must be trained and tested on real historical matches before it can provide probabilities. "
-        "Please start Ollama and configure the model to enable free-form local chat."
+    # 3. Intelligent safe fallback
+    fallback_answer = (
+        "I am ready to help you on PitchSide! I can explain statistical match results, expected goals (xG), "
+        "and player ratings. You can also ask me to start matches (e.g. 'I want to play 1v1', 'start game', "
+        "'turn off lights', or 'show live predictions')."
     )
-    return ChatResponse(answer=fallback, provider="Safe local fallback", reasoning="Rule-based response; LLM unavailable")
+    if action and action.get("label"):
+        fallback_answer = f"⚡ Understood! Executing action: **{action['label']}** now.\n\nEnjoy the pitch!"
+    provider = "PitchSide Intelligence Engine"
+    log_assistant_activity(user.id, user_msg, fallback_answer, provider, action)
+
+    return ChatResponse(
+        answer=fallback_answer,
+        provider=provider,
+        reasoning="Platform action execution and football knowledge guidance",
+        action=action,
+    )

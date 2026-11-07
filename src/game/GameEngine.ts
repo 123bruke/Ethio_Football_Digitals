@@ -46,6 +46,7 @@ export class GameEngine {
     soundEnabled: true,
     cameraZoom: 'broadcast',
     cameraMode: 'broadcast',
+    gameMode: 'squad',
   };
 
   public homeScore = 0;
@@ -163,6 +164,26 @@ export class GameEngine {
       this.ball.state.ownerId = awayFwd.state.id;
       this.ball.state.lastTouchTeam = 'away';
       this.ball.state.lastTouchPlayerName = awayFwd.state.name;
+    }
+
+    if (this.settings.gameMode === '1v1') {
+      // 1-on-1 Duel: Striker vs Goalkeeper/Defender confrontation
+      for (let i = 0; i < 4; i++) {
+        const hp = this.homeTeam.players[i].state;
+        hp.x = -this.pitch.halfW * 0.4 + i * 2.8;
+        hp.y = this.pitch.halfH + 2.8;
+        hp.vx = 0;
+        hp.vy = 0;
+        hp.animState = 'idle';
+      }
+      for (let i = 1; i < 5; i++) {
+        const ap = this.awayTeam.players[i].state;
+        ap.x = this.pitch.halfW * 0.4 - (i - 1) * 2.8;
+        ap.y = this.pitch.halfH + 2.8;
+        ap.vx = 0;
+        ap.vy = 0;
+        ap.animState = 'idle';
+      }
     }
   }
 
@@ -515,8 +536,8 @@ export class GameEngine {
         ruleCheck.restartType === 'THROW_IN'
           ? 'Throw-In'
           : ruleCheck.restartType === 'CORNER_KICK'
-          ? 'Corner Kick'
-          : 'Goal Kick';
+            ? 'Corner Kick'
+            : 'Goal Kick';
       this.restartBanner = {
         type: ruleCheck.restartType,
         team: ruleCheck.restartTeam,
@@ -615,7 +636,7 @@ export class GameEngine {
       }
       const ctx = this.audioCtx;
       if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
+        ctx.resume().catch(() => { });
       }
       const now = ctx.currentTime;
 
@@ -680,7 +701,7 @@ export class GameEngine {
   public dispose(): void {
     this.input.detach();
     if (this.audioCtx) {
-      this.audioCtx.close().catch(() => {});
+      this.audioCtx.close().catch(() => { });
       this.audioCtx = null;
     }
   }

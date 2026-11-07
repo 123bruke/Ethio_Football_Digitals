@@ -42,6 +42,56 @@ class ChatResponse(BaseModel):
     answer: str
     provider: str
     reasoning: str
+    action: dict[str, Any] | None = None
+
+
+class SupportMessageCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
+    image_url: str | None = None
+
+
+class SupportMessageResponse(BaseModel):
+    id: str
+    sender_id: str
+    sender_name: str
+    sender_role: str
+    content: str
+    image_url: str | None = None
+    created_at: str
+    is_admin: bool = False
+
+
+class GoalPredictorPlayer(BaseModel):
+    name: str
+    number: int
+    team: str
+    role: str
+    goal_probability: float
+    reason: str
+
+
+class BestPlayerPrediction(BaseModel):
+    name: str
+    number: int
+    team: str
+    role: str
+    predicted_rating: float
+    key_factors: list[str]
+
+
+class WorldMatchPrediction(BaseModel):
+    match_id: str
+    home_team: str
+    away_team: str
+    ml_probabilities: dict[str, float]
+    predicted_winner: str
+    confidence: float
+    xg: dict[str, float]
+    predicted_goal_scorers: list[GoalPredictorPlayer]
+    best_players: dict[str, BestPlayerPrediction]
+    tactical_summary: str
+    projected_score: str
+    ai_model_used: str
 
 
 class PredictionResponse(BaseModel):

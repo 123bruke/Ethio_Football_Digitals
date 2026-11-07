@@ -1,13 +1,15 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   Activity, Bell, BrainCircuit, ChartNoAxesCombined, Check, ChevronDown,
-  Compass, Home, LogOut, Menu, MessageCircle, Plus, Search, Send,
+  Compass, Globe, Home, LogOut, Menu, MessageCircle, Plus, Search, Send,
   Settings, Shield, Sparkles, Trophy, UserRound, Users, X,
 } from 'lucide-react';
 import { GameExperience } from './components/GameExperience';
 import { DirectMessages, DiscoveryPeople, FeedPanel } from './components/SocialPanels';
+import { AIWorldPredictions } from './components/AIWorldPredictions';
+import { TelegramAdminChat } from './components/TelegramAdminChat';
 
-type Tab = 'home' | 'discover' | 'messages' | 'ai' | 'game' | 'profile' | 'settings';
+type Tab = 'home' | 'world' | 'discover' | 'support' | 'messages' | 'ai' | 'game' | 'profile' | 'settings';
 type AuthMode = 'login' | 'register';
 type User = { id: string; username: string; display_name: string; email: string; role: string };
 type AssistantMessage = { role: 'assistant' | 'user'; content: string };
@@ -16,7 +18,9 @@ type Prediction = { home: string; draw: string; away: string; predicted: string;
 const API = import.meta.env.VITE_API_URL === '/same-origin' ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:8000');
 const navigation: { id: Tab; label: string; icon: typeof Home }[] = [
   { id: 'home', label: 'Home', icon: Home },
+  { id: 'world', label: 'World Live & AI', icon: Globe },
   { id: 'discover', label: 'Discover', icon: Compass },
+  { id: 'support', label: 'Admin Support', icon: Shield },
   { id: 'messages', label: 'Messages', icon: MessageCircle },
   { id: 'ai', label: 'AI assistant', icon: BrainCircuit },
   { id: 'game', label: 'Play game', icon: Trophy },
@@ -106,7 +110,21 @@ function AppShell({ user, token, onLogout }: { user: User; token: string; onLogo
   }, []);
   useEffect(() => { localStorage.setItem('pitchside:last-tab', tab); }, [tab]);
 
-  const pageTitle = useMemo(() => ({ home: 'Your football space', discover: 'Discover football', messages: 'Messages', ai: 'AI match companion', game: 'Play PitchSide', profile: 'Your profile', settings: 'Settings' }[tab]), [tab]);
+  const pageTitle = useMemo(
+    () =>
+      ({
+        home: 'Your football space',
+        world: 'World Live & Unified AI Predictions',
+        discover: 'Discover & Predict',
+        support: 'Telegram Admin Support',
+        messages: 'Messages',
+        ai: 'AI match companion',
+        game: 'Play PitchSide',
+        profile: 'Your profile',
+        settings: 'Settings',
+      }[tab]),
+    [tab]
+  );
 
   async function sendChat(event: FormEvent) {
     event.preventDefault();
@@ -123,6 +141,17 @@ function AppShell({ user, token, onLogout }: { user: User; token: string; onLogo
       const result = await response.json();
       if (!response.ok) throw new Error(result.detail || 'Assistant is unavailable.');
       setChat(prev => [...prev, { role: 'assistant', content: result.answer }]);
+
+      // Execute AI platform action if triggered
+      if (result.action) {
+        if (result.action.type === 'START_GAME') {
+          setTab('game');
+        } else if (result.action.type === 'NAVIGATE_TAB') {
+          if (result.action.tab === 'live-world') setTab('world');
+          else if (result.action.tab === 'predictions') setTab('discover');
+          else if (result.action.tab === 'social') setTab('support');
+        }
+      }
     } catch (e) {
       setChat(prev => [...prev, { role: 'assistant', content: e instanceof Error ? e.message : 'The assistant could not respond.' }]);
     } finally { setChatBusy(false); }
@@ -179,6 +208,10 @@ function AppShell({ user, token, onLogout }: { user: User; token: string; onLogo
           </aside>
         </section>}
 
+        {tab === 'world' && <section className="page-content"><AIWorldPredictions token={token} onLaunchGame={() => handleNav('game')} /></section>}
+
+        {tab === 'support' && <section className="page-content"><TelegramAdminChat token={token} /></section>}
+
         {tab === 'discover' && <section className="page-content"><div className="intro-row"><div><span className="eyebrow">EXPLORE THE GAME</span><h2>Discover & predict</h2><p className="muted">A simple workspace to explore match information and the prediction service.</p></div><span className="status-chip"><i /> Model service connection</span></div><div className="prediction-workspace"><div className="workspace-copy"><span className="eyebrow">MATCH PREDICTION</span><h3>Make an informed match estimate.</h3><p>Enter pre-match statistics. The system will return a probability only after a real model has been trained with valid historical data.</p><div className="info-note"><Shield size={17} /><span>Predictions are informational. They are not guaranteed outcomes or betting advice.</span></div></div><form className="prediction-form" onSubmit={runPrediction}><div className="form-pair"><label>Home team<input value={matchForm.home} onChange={e => setMatchForm(v => ({ ...v, home: e.target.value }))} required /></label><label>Away team<input value={matchForm.away} onChange={e => setMatchForm(v => ({ ...v, away: e.target.value }))} required /></label></div><span className="form-section-label">RECENT TEAM AVERAGES</span><div className="form-grid">{[
               ['Home points / match','homeForm'],['Away points / match','awayForm'],['Home goals for','homeGoals'],['Away goals for','awayGoals'],['Home goals conceded','homeConceded'],['Away goals conceded','awayConceded'],['Home win rate (0–1)','homeWinRate'],['Away win rate (0–1)','awayWinRate'],['Home rest days','homeRestDays'],['Away rest days','awayRestDays'],['Home strength / position (0–1)','homeLeaguePositionNorm'],['Away strength / position (0–1)','awayLeaguePositionNorm'],
             ].map(([label,key]) => <label key={key}>{label}<input type="number" min={key.toLowerCase().includes('winrate') || key.toLowerCase().includes('positionnorm') ? 0 : 0} max={key.toLowerCase().includes('winrate') || key.toLowerCase().includes('positionnorm') ? 1 : key.toLowerCase().includes('restdays') ? 30 : 5} step={key.toLowerCase().includes('winrate') || key.toLowerCase().includes('positionnorm') ? 0.01 : key.toLowerCase().includes('restdays') ? 1 : 0.1} value={matchForm[key as keyof typeof matchForm]} onChange={e => setMatchForm(v => ({ ...v, [key]: Number(e.target.value) }))} /></label>)}</div><button className="primary-btn full-btn">Run prediction <ChartNoAxesCombined size={16} /></button>{predictionError && <div className="form-error">{predictionError}</div>}{prediction && <div className="prediction-result"><span className="eyebrow">MODEL OUTPUT · {prediction.predicted.toUpperCase()}</span><div className="probability-bars">{[['Home',prediction.home],['Draw',prediction.draw],['Away',prediction.away]].map(([name,val]) => <div key={name}><div><b>{name}</b><span>{(Number(val)*100).toFixed(1)}%</span></div><i style={{ width: `${Number(val)*100}%` }} /></div>)}</div><small>Model confidence: {(prediction.confidence*100).toFixed(1)}%</small></div>}</form></div><DiscoveryPeople token={token} onOpenMessages={() => handleNav('messages')} /><div className="discover-grid"><div className="small-feature"><div className="feature-icon"><Users size={20} /></div><h3>Find your people</h3><p>Connect with football fans, share your thoughts, and build a community around the game.</p></div><div className="small-feature"><div className="feature-icon"><BrainCircuit size={20} /></div><h3>Understand the AI</h3><p>See which features influence a prediction and learn why a model may be uncertain.</p></div><div className="small-feature"><div className="feature-icon"><Trophy size={20} /></div><h3>Play to improve</h3><p>Take on the existing 5v5 football engine and compare your decisions with the game AI.</p></div></div></section>}
@@ -193,7 +226,7 @@ function AppShell({ user, token, onLogout }: { user: User; token: string; onLogo
 
         {tab === 'settings' && <section className="page-content"><div className="settings-card"><span className="eyebrow">PREFERENCES</span><h2>Account settings</h2><p className="muted">Your account is registered as <b>{user.email}</b>.</p><div className="settings-row"><div><b>Account role</b><small>{user.role}</small></div><span className="settings-value">{user.role === 'admin' ? 'Administrator' : 'Player'}</span></div><div className="settings-row"><div><b>Privacy & safety</b><small>Use respectful community interactions.</small></div><Shield size={18} /></div><div className="settings-row"><div><b>AI permissions</b><small>AI may explain; account changes require your approval.</small></div><span className="settings-value">User-controlled</span></div><button className="outline-btn logout-btn" onClick={onLogout}><LogOut size={16} /> Sign out</button></div></section>}
         <nav className="mobile-bottom-nav" aria-label="Main navigation">
-          {navigation.map(item => { const Icon = item.icon; return <button key={item.id} className={tab === item.id ? 'mobile-nav-item active' : 'mobile-nav-item'} onClick={() => handleNav(item.id)}><Icon size={18}/><span>{item.id === 'game' ? 'Game' : item.id === 'messages' ? 'Chat' : item.label === 'AI assistant' ? 'AI' : item.label}</span></button>; })}
+          {navigation.map(item => { const Icon = item.icon; return <button key={item.id} className={tab === item.id ? 'mobile-nav-item active' : 'mobile-nav-item'} onClick={() => handleNav(item.id)}><Icon size={18}/><span>{item.id === 'game' ? 'Game' : item.id === 'world' ? 'World' : item.id === 'support' ? 'Support' : item.id === 'messages' ? 'Chat' : item.label === 'AI assistant' ? 'AI' : item.label}</span></button>; })}
         </nav>
       </main>
     </div>

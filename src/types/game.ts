@@ -27,6 +27,8 @@ export type DifficultyLevel = 'casual' | 'standard' | 'pro';
 
 export type CameraMode = 'broadcast' | 'action' | 'endline' | 'tactical';
 
+export type MatchGameMode = 'squad' | '1v1';
+
 export interface Vec2 {
   x: number;
   y: number;
@@ -153,6 +155,7 @@ export interface MatchSettings {
   soundEnabled: boolean;
   cameraZoom: 'broadcast' | 'wide';
   cameraMode: CameraMode;
+  gameMode: MatchGameMode;
 }
 
 export interface GoalBannerInfo {
