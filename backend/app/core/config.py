@@ -6,8 +6,6 @@ from sqlalchemy.engine import URL
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(PROJECT_ROOT / ".env"), env_file_encoding="utf-8", extra="ignore")
 
@@ -27,7 +25,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_minutes: int = 60 * 12
     ollama_base_url: str = "http://host.docker.internal:11434"
-    ollama_model: str = "llama3.1:8b"
+    ollama_model: str = "qwen2.5:7b"
     gemini_api_key: str = ""
     assistant_timeout_seconds: int = 45
     model_artifact_path: str = str(PROJECT_ROOT / "artifacts" / "football_result.joblib")
@@ -40,7 +38,7 @@ class Settings(BaseSettings):
     admin_password: str = ""
     cors_origins: str = "http://localhost:3000,http://localhost:3001"
 
-    @model_validator(mode="after")
+   @model_validator(mode="after")
     def assemble_local_database_url(self):
         if not self.database_url:
             self.database_url = URL.create(
@@ -52,15 +50,10 @@ class Settings(BaseSettings):
                 database=self.postgres_db,
             ).render_as_string(hide_password=False)
         return self
-
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
-
-
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
-
 settings = get_settings()

@@ -64,7 +64,7 @@ services:
       NEO4J_ENABLED: ${NEO4J_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
       MODEL_ARTIFACT_PATH: /app/artifacts/football_result.joblib
       MODEL_METADATA_PATH: /app/artifacts/football_result_metadata.json
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}

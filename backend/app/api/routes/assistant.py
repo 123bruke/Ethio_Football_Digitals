@@ -48,7 +48,18 @@ async def chat(payload: ChatRequest, user: User = Depends(get_current_user)):
             candidate_urls.append(cleaned)
 
     candidate_models = []
-    for model_name in [settings.ollama_model, "llama3.1:8b", "llama3.1:latest", "llama3.1", "llama3"]:
+    for model_name in [
+        settings.ollama_model,
+        "qwen2.5:7b",
+        "qwen2.5",
+        "qwen2.5:latest",
+        "qwen2.5:3b",
+        "qwen2.5-coder:7b",
+        "qwen2:7b",
+        "qwen",
+        "llama3.1:8b",
+        "llama3.1",
+    ]:
         if model_name and model_name not in candidate_models:
             candidate_models.append(model_name)
 
@@ -72,12 +83,16 @@ async def chat(payload: ChatRequest, user: User = Depends(get_current_user)):
                         if answer:
                             if action and action.get("label"):
                                 answer = f"⚡ Executing action: **{action['label']}**!\n\n" + answer
-                            provider = f"Local Llama · {model_name}"
+                            provider = (
+                                f"Local Qwen AI · {model_name}"
+                                if "qwen" in model_name.lower()
+                                else f"Local Model · {model_name}"
+                            )
                             log_assistant_activity(user.id, user_msg, answer, provider, action)
                             return ChatResponse(
                                 answer=answer,
                                 provider=provider,
-                                reasoning="Local Llama AI inference with platform action dispatching",
+                                reasoning="Local Qwen AI inference with platform action dispatching",
                                 action=action,
                             )
                 except (httpx.HTTPError, ValueError, KeyError):

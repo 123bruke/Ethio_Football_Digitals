@@ -319,7 +319,7 @@ export default function App() {
         const data = await res.json();
         setSupportMessages(data.messages || []);
       }
-    } catch {}
+    } catch { }
   }, [token]);
 
   const loadAssistantActivity = useCallback(async () => {
@@ -332,7 +332,7 @@ export default function App() {
         const data = await res.json();
         setAssistantLogs(data.activity || []);
       }
-    } catch {}
+    } catch { }
   }, [token]);
 
   const sendAdminReply = async (e: FormEvent) => {
@@ -352,7 +352,7 @@ export default function App() {
         setAdminReplyText('');
         void loadSupportMessages();
       }
-    } catch {}
+    } catch { }
     finally {
       setReplyBusy(false);
     }
@@ -515,19 +515,19 @@ export default function App() {
               {view === 'overview'
                 ? 'System overview'
                 : view === 'live-matches'
-                ? 'Real-Time Matches & Goal Monitor'
-                : view === 'support'
-                ? 'Telegram Support & AI Actions Monitor'
-                : 'User management'}
+                  ? 'Real-Time Matches & Goal Monitor'
+                  : view === 'support'
+                    ? 'Telegram Support & AI Actions Monitor'
+                    : 'User management'}
             </h1>
             <p>
               {view === 'overview'
                 ? 'Monitor the PitchSide platform, prediction pipeline and local resources.'
                 : view === 'live-matches'
-                ? 'Live game telemetry, scores, and goal counter updating automatically without page refresh.'
-                : view === 'support'
-                ? 'Review player Telegram messages, inspect attached photos/screenshots, reply, and monitor live AI actions.'
-                : 'Review registered player accounts and manage access status.'}
+                  ? 'Live game telemetry, scores, and goal counter updating automatically without page refresh.'
+                  : view === 'support'
+                    ? 'Review player Telegram messages, inspect attached photos/screenshots, reply, and monitor live AI actions.'
+                    : 'Review registered player accounts and manage access status.'}
             </p>
           </div>
           <div className="header-controls">
